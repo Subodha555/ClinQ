@@ -430,7 +430,8 @@
 </main>
 
 <script>
-    const NODE_RED_URL = 'http://127.0.0.1:1880';
+    const NODE_RED_URL = 'http://35.208.117.33:1880';
+    let patientAddress;
 
     const thresholds = {
         heartRate:     { low: 60,   high: 100,  label: 'Normal: 60–100 bpm' },
@@ -485,16 +486,18 @@
 
         try {
             const res = await fetch(NODE_RED_URL + '/patient/' + patientId);
-            // if (!res.ok) throw new Error('Not found');
-            //
-            // const data = await res.json();
-            const data = {
-                name: "Lionel Lopez",
-                age: 32
-            }
+            if (!res.ok) throw new Error('Not found');
+
+            let data = await res.json();
+            data = data.patient;
+            patientAddress = data.address;
+            // const data = {
+            //     name: "Lionel Lopez",
+            //     age: 32
+            // }
 
             // Fill read-only fields from API response
-            document.getElementById('name').value = data.name;
+            document.getElementById('name').value = data.firstName +" " + data.lastName;
             document.getElementById('age').value  = data.age;
 
             // Reveal confirmed details and rest of form
@@ -560,16 +563,17 @@
             temperature:   parseFloat(document.getElementById('temperature').value),
             bloodPressure: parseFloat(document.getElementById('bloodPressure').value),
             timestamp:     new Date().toISOString(),
+            location: patientAddress
         };
 
-        fetch(NODE_RED_URL + '/checkin', {
+        fetch(NODE_RED_URL + '/submit', {
             method:  'POST',
             headers: { 'Content-Type': 'application/json' },
             body:    JSON.stringify(payload),
         })
             .then(r => r.json())
-            .then(data => showSuccess(data.referenceId || payload.patientId))
-            .catch(() => showSuccess(payload.patientId));
+            // .then(data => showSuccess(data.referenceId || payload.patientId))
+            // .catch(() => showSuccess(payload.patientId));
     }
 
     function showSuccess(pid) {
