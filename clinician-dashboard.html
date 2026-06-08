@@ -1,0 +1,681 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ClinIQ — Clinician Dashboard</title>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Mono:wght@400;500&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg: #0F1117;
+            --surface: #181B23;
+            --surface2: #1F2330;
+            --border: rgba(255,255,255,0.08);
+            --text: #F0EEF9;
+            --text-muted: #7B7A8E;
+            --text-dim: #4A4A5A;
+            --teal: #2DD4BF;
+            --teal-dim: rgba(45,212,191,0.12);
+            --c1: #4ADE80;
+            --c2: #86EFAC;
+            --c3: #FCD34D;
+            --c4: #FB923C;
+            --c5: #F87171;
+            --c1-bg: rgba(74,222,128,0.1);
+            --c2-bg: rgba(134,239,172,0.1);
+            --c3-bg: rgba(252,211,77,0.1);
+            --c4-bg: rgba(251,146,60,0.1);
+            --c5-bg: rgba(248,113,113,0.12);
+            --radius: 12px;
+        }
+
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: 'DM Sans', sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            display: flex; flex-direction: column;
+        }
+
+
+        header {
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 0 28px; height: 58px;
+            border-bottom: 1px solid var(--border);
+            background: var(--surface);
+            position: sticky; top: 0; z-index: 100;
+        }
+        .logo { display: flex; align-items: center; gap: 10px; }
+        .logo-mark {
+            width: 32px; height: 32px; border-radius: 8px;
+            background: var(--teal);
+            display: flex; align-items: center; justify-content: center;
+        }
+        .logo-mark svg { width: 18px; height: 18px; }
+        .logo-name {
+            font-family: 'DM Serif Display', serif;
+            font-size: 20px; color: var(--text);
+        }
+        .logo-name span { color: var(--teal); }
+
+        .header-center {
+            font-size: 13px; color: var(--text-muted);
+            display: flex; align-items: center; gap: 10px;
+        }
+        .live-pill {
+            display: flex; align-items: center; gap: 6px;
+            background: rgba(45,212,191,0.1); border: 1px solid rgba(45,212,191,0.2);
+            border-radius: 20px; padding: 4px 12px;
+            font-size: 12px; color: var(--teal); font-weight: 500;
+        }
+        .live-dot {
+            width: 7px; height: 7px; border-radius: 50%;
+            background: var(--teal);
+            animation: pulse 2s ease-in-out infinite;
+        }
+        @keyframes pulse { 0%,100%{opacity:1;} 50%{opacity:.3;} }
+
+        .header-right {
+            display: flex; align-items: center; gap: 14px;
+            font-size: 12px; color: var(--text-muted);
+        }
+        .refresh-btn {
+            font-family: 'DM Sans', sans-serif;
+            font-size: 12px; color: var(--text-muted);
+            background: var(--surface2); border: 1px solid var(--border);
+            border-radius: 8px; padding: 6px 12px; cursor: pointer;
+            transition: all .2s;
+        }
+        .refresh-btn:hover { color: var(--teal); border-color: var(--teal); }
+
+
+        .layout {
+            display: grid;
+            grid-template-columns: 220px 1fr;
+            flex: 1; min-height: 0;
+        }
+
+
+        aside {
+            border-right: 1px solid var(--border);
+            background: var(--surface);
+            padding: 20px 16px;
+            display: flex; flex-direction: column; gap: 6px;
+        }
+        .aside-label {
+            font-size: 10px; font-weight: 600;
+            letter-spacing: 1.2px; text-transform: uppercase;
+            color: var(--text-dim); margin: 12px 0 6px 8px;
+        }
+        .aside-label:first-child { margin-top: 0; }
+        .nav-item {
+            display: flex; align-items: center; gap: 10px;
+            padding: 9px 12px; border-radius: 8px;
+            font-size: 13px; color: var(--text-muted);
+            cursor: pointer; transition: all .15s; border: none;
+            background: none; width: 100%; text-align: left;
+        }
+        .nav-item:hover { background: var(--surface2); color: var(--text); }
+        .nav-item.active {
+            background: var(--teal-dim);
+            color: var(--teal); font-weight: 500;
+        }
+        .nav-item svg { width: 16px; height: 16px; flex-shrink: 0; }
+        .nav-badge {
+            margin-left: auto; font-size: 10px; font-weight: 600;
+            background: var(--c5-bg); color: var(--c5);
+            padding: 2px 7px; border-radius: 10px;
+        }
+        .nav-badge.warn { background: var(--c4-bg); color: var(--c4); }
+
+
+        .content { padding: 24px 28px; overflow-y: auto; }
+
+
+        .stats-row {
+            display: grid; grid-template-columns: repeat(4,1fr);
+            gap: 14px; margin-bottom: 22px;
+        }
+        .stat {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 16px 18px;
+            position: relative; overflow: hidden;
+        }
+        .stat::after {
+            content: ''; position: absolute;
+            top: 0; left: 0; right: 0; height: 2px;
+        }
+        .stat.s5::after { background: var(--c5); }
+        .stat.s4::after { background: var(--c4); }
+        .stat.s-total::after { background: var(--teal); }
+        .stat.s-low::after { background: var(--c1); }
+        .stat-num {
+            font-family: 'DM Serif Display', serif;
+            font-size: 32px; line-height: 1; margin-bottom: 4px;
+        }
+        .stat.s5 .stat-num { color: var(--c5); }
+        .stat.s4 .stat-num { color: var(--c4); }
+        .stat.s-total .stat-num { color: var(--teal); }
+        .stat.s-low .stat-num { color: var(--c1); }
+        .stat-lbl { font-size: 12px; color: var(--text-muted); }
+        .stat-change {
+            font-size: 10px; margin-top: 6px;
+            color: var(--text-dim);
+        }
+
+
+        .toolbar {
+            display: flex; align-items: center; gap: 10px;
+            margin-bottom: 14px; flex-wrap: wrap;
+        }
+        .toolbar-left { display: flex; gap: 6px; flex-wrap: wrap; }
+        .filter-pill {
+            font-family: 'DM Sans', sans-serif;
+            font-size: 12px; padding: 5px 12px;
+            border-radius: 20px; cursor: pointer;
+            border: 1px solid var(--border);
+            background: none; color: var(--text-muted);
+            transition: all .15s;
+        }
+        .filter-pill:hover { color: var(--text); border-color: rgba(255,255,255,0.2); }
+        .filter-pill.on {
+            background: var(--teal-dim); color: var(--teal);
+            border-color: rgba(45,212,191,0.3);
+        }
+        .search-wrap {
+            margin-left: auto; position: relative;
+        }
+        .search-wrap svg {
+            position: absolute; left: 10px; top: 50%; transform: translateY(-50%);
+            width: 14px; height: 14px; color: var(--text-dim);
+        }
+        .search-wrap input {
+            font-family: 'DM Sans', sans-serif;
+            font-size: 13px; color: var(--text);
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 8px; padding: 7px 12px 7px 32px;
+            outline: none; width: 200px;
+            transition: border-color .2s;
+        }
+        .search-wrap input:focus { border-color: var(--teal); }
+        .search-wrap input::placeholder { color: var(--text-dim); }
+
+
+        .table-wrap {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            overflow: hidden;
+        }
+        .table-head {
+            display: grid;
+            grid-template-columns: 64px 1fr 90px 96px 110px 80px 36px;
+            gap: 8px; padding: 10px 16px;
+            border-bottom: 1px solid var(--border);
+            font-size: 11px; font-weight: 600;
+            letter-spacing: 0.5px; text-transform: uppercase;
+            color: var(--text-dim);
+        }
+        .pt-row {
+            display: grid;
+            grid-template-columns: 64px 1fr 90px 96px 110px 80px 36px;
+            gap: 8px; padding: 13px 16px;
+            border-bottom: 1px solid var(--border);
+            cursor: pointer; transition: background .12s;
+            align-items: center;
+        }
+        .pt-row:last-child { border-bottom: none; }
+        .pt-row:hover { background: var(--surface2); }
+        .pt-row.selected { background: rgba(45,212,191,0.05); border-left: 2px solid var(--teal); padding-left: 14px; }
+
+        .level-badge {
+            display: inline-flex; align-items: center; justify-content: center;
+            width: 32px; height: 32px; border-radius: 8px;
+            font-size: 15px; font-weight: 600;
+            font-family: 'DM Mono', monospace;
+        }
+        .l1 { background: var(--c1-bg); color: var(--c1); }
+        .l2 { background: var(--c2-bg); color: var(--c2); }
+        .l3 { background: var(--c3-bg); color: var(--c3); }
+        .l4 { background: var(--c4-bg); color: var(--c4); }
+        .l5 { background: var(--c5-bg); color: var(--c5); }
+
+        .pt-name { font-size: 13px; font-weight: 500; color: var(--text); }
+        .pt-sub { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
+        .vital-val { font-size: 13px; font-family: 'DM Mono', monospace; }
+        .vital-flag {
+            font-size: 9px; font-weight: 600; padding: 1px 5px;
+            border-radius: 3px; margin-left: 4px; vertical-align: middle;
+            background: var(--c4-bg); color: var(--c4);
+        }
+        .action-tag {
+            font-size: 11px; font-weight: 500; padding: 3px 8px;
+            border-radius: 6px; display: inline-block;
+        }
+        .at5 { background: var(--c5-bg); color: var(--c5); }
+        .at4 { background: var(--c4-bg); color: var(--c4); }
+        .at3 { background: var(--c3-bg); color: var(--c3); }
+        .at2 { background: var(--c2-bg); color: var(--c2); }
+        .at1 { background: var(--c1-bg); color: var(--c1); }
+        .pt-time { font-size: 12px; color: var(--text-muted); font-family: 'DM Mono', monospace; }
+        .expand-btn {
+            background: none; border: none; cursor: pointer;
+            color: var(--text-dim); transition: color .15s; padding: 4px;
+        }
+        .expand-btn:hover { color: var(--teal); }
+        .expand-btn svg { width: 16px; height: 16px; display: block; }
+
+
+        .detail-drawer {
+            background: var(--surface2);
+            border-bottom: 1px solid var(--border);
+            padding: 16px 20px;
+            display: none; animation: slideDown .2s ease;
+        }
+        .detail-drawer.open { display: block; }
+        @keyframes slideDown { from{opacity:0;transform:translateY(-6px);} to{opacity:1;transform:translateY(0);} }
+
+        .detail-grid {
+            display: grid; grid-template-columns: repeat(4,1fr);
+            gap: 10px; margin-bottom: 12px;
+        }
+        .detail-card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 8px; padding: 10px 12px;
+        }
+        .dc-lbl { font-size: 10px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 5px; }
+        .dc-val { font-size: 14px; font-weight: 500; color: var(--text); font-family: 'DM Mono', monospace; }
+        .dc-note { font-size: 10px; color: var(--text-muted); margin-top: 3px; }
+        .nlu-section { margin-top: 10px; }
+        .nlu-lbl { font-size: 11px; color: var(--text-muted); margin-bottom: 6px; }
+        .nlu-tag {
+            display: inline-block; font-size: 11px; font-weight: 500;
+            padding: 3px 9px; border-radius: 5px; margin: 2px 3px 0 0;
+            background: rgba(45,212,191,0.1); color: var(--teal);
+            border: 1px solid rgba(45,212,191,0.2);
+        }
+        .drawer-actions { display: flex; gap: 8px; margin-top: 12px; }
+        .drawer-btn {
+            font-family: 'DM Sans', sans-serif;
+            font-size: 12px; padding: 7px 14px;
+            border-radius: 7px; cursor: pointer; border: none;
+            transition: all .15s; font-weight: 500;
+        }
+        .drawer-btn-primary {
+            background: var(--teal); color: #0F1117;
+        }
+        .drawer-btn-secondary {
+            background: var(--surface); color: var(--text-muted);
+            border: 1px solid var(--border);
+        }
+        .drawer-btn-secondary:hover { color: var(--text); }
+        .email-sent-badge {
+            font-size: 11px; background: var(--c4-bg); color: var(--c4);
+            border: 1px solid rgba(251,146,60,0.2);
+            padding: 3px 10px; border-radius: 5px; font-weight: 500;
+            margin-left: auto;
+        }
+
+
+        .empty { text-align: center; padding: 48px 0; color: var(--text-dim); font-size: 14px; }
+
+
+        .footer-bar {
+            border-top: 1px solid var(--border);
+            padding: 10px 28px;
+            display: flex; align-items: center; gap: 12px;
+            font-size: 11px; color: var(--text-dim);
+            background: var(--surface);
+        }
+        .footer-bar span { margin-left: auto; }
+    </style>
+</head>
+<body>
+
+<header>
+    <div class="logo">
+        <div class="logo-mark">
+            <svg viewBox="0 0 24 24" fill="none" stroke="#0F1117" stroke-width="2.5" stroke-linecap="round">
+                <path d="M22 12h-4l-3 9L9 3l-3 9H2"/>
+            </svg>
+        </div>
+        <span class="logo-name">Clin<span>IQ</span></span>
+    </div>
+
+    <div class="header-center">
+        <div class="live-pill">
+            <div class="live-dot"></div>
+            Live · Auto-refresh 60s
+        </div>
+        <span id="clock" style="font-family:'DM Mono',monospace;font-size:13px;">--:--:--</span>
+    </div>
+
+    <div class="header-right">
+        <button class="refresh-btn" onclick="refreshData()">↻ Refresh</button>
+    </div>
+</header>
+
+<div class="layout">
+    <!-- Sidebar -->
+    <aside>
+        <div class="aside-label">Views</div>
+        <button class="nav-item active">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+            Triage Queue
+            <span class="nav-badge">3</span>
+        </button>
+        <button class="nav-item">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+            All Patients
+        </button>
+        <button class="nav-item">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+            Analytics
+        </button>
+
+        <div class="aside-label">Alerts</div>
+        <button class="nav-item">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M22 17H2a3 3 0 0 0 3-3V9a7 7 0 0 1 14 0v5a3 3 0 0 0 3 3z"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+            Email Alerts
+            <span class="nav-badge warn">5</span>
+        </button>
+        <button class="nav-item">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+            Audit Log
+        </button>
+
+        <div class="aside-label">System</div>
+<!--        <button class="nav-item">-->
+<!--            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93l-1.41 1.41M4.93 4.93l1.41 1.41M4.93 19.07l1.41-1.41M19.07 19.07l-1.41-1.41M12 2v2M12 20v2M2 12h2M20 12h2"/></svg>-->
+<!--            Node-RED Flow-->
+<!--        </button>-->
+        <button class="nav-item">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+            Help
+        </button>
+    </aside>
+
+    <!-- Main content -->
+    <div class="content">
+        <div class="stats-row">
+            <div class="stat s5">
+                <div class="stat-num" id="cnt5">—</div>
+                <div class="stat-lbl">Critical (Level 5)</div>
+                <div class="stat-change" id="cnt5-sub">—</div>
+            </div>
+            <div class="stat s4">
+                <div class="stat-num" id="cnt4">—</div>
+                <div class="stat-lbl">High Risk (Level 4)</div>
+                <div class="stat-change" id="cnt4-sub">—</div>
+            </div>
+            <div class="stat s-total">
+                <div class="stat-num" id="cnt-total">—</div>
+                <div class="stat-lbl">Triaged Today</div>
+                <div class="stat-change">All levels · since 00:00 ACST</div>
+            </div>
+            <div class="stat s-low">
+                <div class="stat-num" id="cnt-low">—</div>
+                <div class="stat-lbl">Low / Mild (Levels 1–3)</div>
+                <div class="stat-change" id="cnt-low-sub">—</div>
+            </div>
+        </div>
+
+        <!-- Toolbar -->
+        <div class="toolbar">
+            <div class="toolbar-left">
+                <button class="filter-pill on" onclick="setFilter('all',this)">All patients</button>
+                <button class="filter-pill" onclick="setFilter(5,this)">Critical only</button>
+                <button class="filter-pill" onclick="setFilter(4,this)">High+</button>
+                <button class="filter-pill" onclick="setFilter('email',this)">Email sent</button>
+            </div>
+            <div class="search-wrap">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                <input type="text" id="search-input" placeholder="Search patient…" oninput="renderTable()">
+            </div>
+        </div>
+
+        <!-- Table -->
+        <div class="table-wrap">
+            <div class="table-head">
+                <span>Level</span>
+                <span>Patient</span>
+                <span>Heart rate</span>
+                <span>Temp</span>
+                <span>Action</span>
+                <span>Time</span>
+                <span></span>
+            </div>
+            <div id="queue-body"></div>
+        </div>
+
+    </div>
+</div>
+
+<div class="footer-bar">
+    <div class="live-dot" style="width:6px;height:6px;background:var(--teal);border-radius:50%;animation:pulse 2s infinite;"></div>
+    Connected to Node-RED · MongoDB Atlas · Watson NLU
+    <span>Last sync: <span id="last-sync">just now</span></span>
+</div>
+
+<script>
+    const NODE_RED_URL = 'http://127.0.0.1:1880';
+
+    const actionLabel = { 5:'Emergency', 4:'Email sent', 3:'Urgent GP', 2:'Book GP', 1:'Monitor' };
+    const actionClass  = { 5:'at5', 4:'at4', 3:'at3', 2:'at2', 1:'at1' };
+
+    let patients     = [];
+    let activeFilter = 'all';
+    let openId       = null;
+
+    async function fetchQueue() {
+        try {
+            const res  = await fetch(NODE_RED_URL + '/dashboard/patients');
+            const data = await res.json();
+            patients = data.patients;
+            updateStats();
+            renderTable();
+            document.getElementById('last-sync').textContent = 'just now';
+        } catch (err) {
+            document.getElementById('last-sync').textContent = 'failed — retrying…';
+            console.error('Queue fetch failed:', err);
+        }
+    }
+
+    function updateStats() {
+        const cnt5     = patients.filter(p => p.triageLevel === 5).length;
+        const cnt4     = patients.filter(p => p.triageLevel === 4).length;
+        const cntLow   = patients.filter(p => p.triageLevel <= 3).length;
+        const cntTotal = patients.length;
+        const emailCnt = patients.filter(p => p.emailSent).length;
+
+        document.getElementById('cnt5').textContent       = cnt5;
+        document.getElementById('cnt4').textContent       = cnt4;
+        document.getElementById('cnt-total').textContent  = cntTotal;
+        document.getElementById('cnt-low').textContent    = cntLow;
+
+
+        const badges = document.querySelectorAll('.nav-badge');
+        if (badges[0]) badges[0].textContent = cnt5;
+        if (badges[1]) badges[1].textContent = emailCnt;
+
+
+        document.getElementById('cnt5-sub').textContent =
+            cnt5 === 0 ? 'No critical patients' : 'Immediate action required';
+        document.getElementById('cnt4-sub').textContent =
+            emailCnt > 0 ? `${emailCnt} email alert${emailCnt > 1 ? 's' : ''} sent` : 'No email alerts sent';
+        document.getElementById('cnt-low-sub').textContent =
+            cntLow === 0 ? 'No low/mild patients' : 'Self-care or GP booking';
+    }
+
+
+    function setFilter(f, el) {
+        activeFilter = f;
+        document.querySelectorAll('.filter-pill').forEach(p => p.classList.remove('on'));
+        el.classList.add('on');
+        openId = null;
+        renderTable();
+    }
+
+    function filtered() {
+        let list = patients;
+        const q = document.getElementById('search-input').value.toLowerCase();
+        if (q) list = list.filter(p =>
+            p.name.toLowerCase().includes(q) ||
+            p.patientId.toLowerCase().includes(q)
+        );
+        if (activeFilter === 'all')   return list;
+        if (activeFilter === 'email') return list.filter(p => p.emailSent);
+        return list.filter(p => p.triageLevel >= activeFilter);
+    }
+
+    function renderTable() {
+        const list = filtered();
+        const body = document.getElementById('queue-body');
+        if (!list.length) {
+            body.innerHTML = '<div class="empty">No patients match the current filter.</div>';
+            return;
+        }
+
+        body.innerHTML = list.map(p => {
+            const time = p.timestamp
+                ? new Date(p.timestamp).toLocaleTimeString('en-AU', { hour:'2-digit', minute:'2-digit', hour12: false })
+                : '—';
+
+            return `
+      <div>
+        <div class="pt-row ${openId === p.patientId ? 'selected' : ''}"
+             onclick="toggleDrawer('${p.patientId}')">
+          <span><span class="level-badge l${p.triageLevel}">${p.triageLevel}</span></span>
+          <span>
+            <div class="pt-name">${p.name}</div>
+            <div class="pt-sub">${p.patientId} · Age ${p.age}</div>
+          </span>
+          <span class="vital-val">
+            ${p.heartRate} bpm
+            ${p.heartRate > 100 ? '<span class="vital-flag">HIGH</span>' : ''}
+          </span>
+          <span class="vital-val">
+            ${p.temperature.toFixed(1)}°C
+            ${p.temperature > 38.5 ? '<span class="vital-flag">FEVER</span>' : ''}
+          </span>
+          <span>
+            <span class="action-tag ${actionClass[p.triageLevel]}">
+              ${actionLabel[p.triageLevel]}
+            </span>
+          </span>
+          <span class="pt-time">${time}</span>
+          <span>
+            <button class="expand-btn"
+              onclick="event.stopPropagation(); toggleDrawer('${p.patientId}')">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                   stroke-width="2" stroke-linecap="round">
+                ${openId === p.patientId
+                ? '<polyline points="18 15 12 9 6 15"/>'
+                : '<polyline points="6 9 12 15 18 9"/>'}
+              </svg>
+            </button>
+          </span>
+        </div>
+
+        <div class="detail-drawer ${openId === p.patientId ? 'open' : ''}"
+             id="drawer-${p.patientId}">
+          <div class="detail-grid">
+            <div class="detail-card">
+              <div class="dc-lbl">Heart Rate</div>
+              <div class="dc-val">${p.heartRate} bpm</div>
+              <div class="dc-note">
+                Threshold: &gt;100 bpm
+                ${p.heartRate > 100 ? ' · ⚠ Elevated' : ''}
+              </div>
+            </div>
+            <div class="detail-card">
+              <div class="dc-lbl">Temperature</div>
+              <div class="dc-val">${p.temperature.toFixed(1)} °C</div>
+              <div class="dc-note">
+                Threshold: &gt;38.5 °C
+                ${p.temperature > 38.5 ? ' · ⚠ Fever' : ''}
+              </div>
+            </div>
+            <div class="detail-card">
+              <div class="dc-lbl">Blood Pressure</div>
+              <div class="dc-val">${p.bloodPressure} mmHg</div>
+              <div class="dc-note">
+                Systolic · Threshold: &gt;140
+                ${p.bloodPressure > 140 ? ' · ⚠ Elevated' : ''}
+              </div>
+            </div>
+            <div class="detail-card">
+              <div class="dc-lbl">Pre-existing Conditions</div>
+              <div class="dc-val" style="font-family:'DM Sans',sans-serif;font-size:13px;">
+                ${p.conditions && p.conditions.length ? p.conditions.join(', ') : 'None recorded'}
+              </div>
+              <div class="dc-note">
+                ${p.conditions && p.conditions.length ? 'History bonus applied to score' : 'No bonus applied'}
+              </div>
+            </div>
+          </div>
+          <div class="nlu-section">
+            <div class="nlu-lbl">Watson NLU — detected symptoms</div>
+            ${(p.detectedSymptoms || []).map(s => `<span class="nlu-tag">${s}</span>`).join('')}
+          </div>
+          <div class="drawer-actions">
+            <button class="drawer-btn drawer-btn-primary"
+              onclick="markReviewed('${p.patientId}', '${p.name}')">
+              Mark reviewed
+            </button>
+            <button class="drawer-btn drawer-btn-secondary">View full record</button>
+            ${p.emailSent
+                ? `<span class="email-sent-badge">✉ Email sent → ${p.clinician}</span>`
+                : ''}
+          </div>
+        </div>
+      </div>`;
+        }).join('');
+    }
+
+    function toggleDrawer(patientId) {
+        openId = openId === patientId ? null : patientId;
+        renderTable();
+    }
+
+    async function markReviewed(patientId, name) {
+        try {
+            await fetch(NODE_RED_URL + '/dashboard/reviewed', {
+                method:  'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body:    JSON.stringify({
+                    patientId,
+                    reviewedBy: 'Dr. Patel',
+                    reviewedAt: new Date().toISOString(),
+                })
+            });
+            alert(name + ' marked as reviewed.');
+        } catch {
+            alert('Could not reach Node-RED. Marked locally only.');
+        }
+    }
+
+    function refreshData() {
+        fetchQueue();
+    }
+
+    function updateClock() {
+        const now = new Date();
+        document.getElementById('clock').textContent =
+            String(now.getHours()).padStart(2,'0') + ':' +
+            String(now.getMinutes()).padStart(2,'0') + ':' +
+            String(now.getSeconds()).padStart(2,'0');
+    }
+    setInterval(updateClock, 1000);
+    updateClock();
+
+    setInterval(fetchQueue, 60000);
+    fetchQueue();
+</script>
+</body>
+</html>

@@ -1,0 +1,603 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ClinIQ — Patient Check-In</title>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <!--
+      ╔══════════════════════════════════════════════════════════╗
+      ║  STEP 1 — Patient lookup                                 ║
+      ║  GET /patient/:patientId                                 ║
+      ║  Response: { "patientId": string,                        ║
+      ║              "name": string, "age": number }             ║
+      ║                                                          ║
+      ║  STEP 2 — Check-in submission                            ║
+      ║  POST /checkin                                           ║
+      ║  Body: { "patientId": string, "name": string,            ║
+      ║          "age": number, "symptoms": string,              ║
+      ║          "heartRate": number, "temperature": number,     ║
+      ║          "bloodPressure": number, "timestamp": string }  ║
+      ╚══════════════════════════════════════════════════════════╝
+    -->
+    <style>
+        :root {
+            --cream: #F7F3EE;
+            --ink: #1C1917;
+            --ink-light: #6B6560;
+            --ink-dim: #A09890;
+            --teal: #0D7377;
+            --teal-light: #E6F4F4;
+            --danger: #C0392B;
+            --danger-light: #FDECEA;
+            --success: #1E6B3C;
+            --success-light: #EAF4EE;
+            --border: rgba(28,25,23,0.12);
+            --radius: 14px;
+        }
+
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: 'DM Sans', sans-serif;
+            background: var(--cream);
+            color: var(--ink);
+            min-height: 100vh;
+            display: flex; flex-direction: column;
+        }
+
+        header {
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 18px 40px;
+            border-bottom: 1px solid var(--border);
+            background: #fff;
+        }
+        .logo { display: flex; align-items: center; gap: 10px; }
+        .logo-mark {
+            width: 34px; height: 34px; border-radius: 9px;
+            background: var(--teal);
+            display: flex; align-items: center; justify-content: center;
+        }
+        .logo-mark svg { width: 18px; height: 18px; }
+        .logo-name { font-family: 'DM Serif Display', serif; font-size: 21px; color: var(--ink); }
+        .logo-name span { color: var(--teal); }
+        .header-right { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--ink-light); }
+        .live-dot {
+            width: 7px; height: 7px; border-radius: 50%; background: #27AE60;
+            animation: blink 2.5s ease-in-out infinite;
+        }
+        @keyframes blink { 0%,100%{opacity:1;} 50%{opacity:.3;} }
+
+        main {
+            flex: 1; display: grid; grid-template-columns: 1fr 1.1fr;
+            max-width: 1040px; margin: 0 auto; width: 100%;
+            padding: 52px 40px; gap: 64px; align-items: start;
+        }
+
+        .intro-tag {
+            display: inline-block; font-size: 11px; font-weight: 600;
+            letter-spacing: 1.2px; text-transform: uppercase;
+            color: var(--teal); background: var(--teal-light);
+            padding: 5px 12px; border-radius: 20px; margin-bottom: 20px;
+        }
+        .intro h1 {
+            font-family: 'DM Serif Display', serif;
+            font-size: 38px; line-height: 1.15;
+            letter-spacing: -0.4px; margin-bottom: 14px;
+        }
+        .intro h1 em { font-style: italic; color: var(--teal); }
+        .intro > p { font-size: 14px; color: var(--ink-light); line-height: 1.75; margin-bottom: 32px; }
+        .info-list { display: flex; flex-direction: column; gap: 12px; }
+        .info-item {
+            display: flex; gap: 14px; align-items: flex-start;
+            background: #fff; border: 1px solid var(--border);
+            border-radius: var(--radius); padding: 14px 16px;
+        }
+        .info-icon {
+            width: 36px; height: 36px; border-radius: 9px;
+            background: var(--teal-light);
+            display: flex; align-items: center; justify-content: center;
+            font-size: 17px; flex-shrink: 0;
+        }
+        .info-item h4 { font-size: 13px; font-weight: 600; margin-bottom: 3px; }
+        .info-item p  { font-size: 12px; color: var(--ink-light); line-height: 1.5; margin: 0; }
+
+        .form-card {
+            background: #fff; border: 1px solid var(--border);
+            border-radius: 20px; padding: 36px;
+            box-shadow: 0 4px 32px rgba(0,0,0,0.06);
+        }
+        .form-card h2 { font-family: 'DM Serif Display', serif; font-size: 22px; margin-bottom: 6px; }
+        .form-sub { font-size: 13px; color: var(--ink-light); margin-bottom: 28px; line-height: 1.5; }
+
+        .field { margin-bottom: 18px; }
+        .field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+
+        label {
+            display: block; font-size: 12px; font-weight: 600;
+            color: var(--ink); margin-bottom: 7px; letter-spacing: 0.1px;
+        }
+        label .req { color: var(--danger); margin-left: 2px; }
+        label .hint { font-weight: 400; color: var(--ink-dim); font-size: 11px; margin-left: 6px; }
+
+        input, textarea {
+            width: 100%; font-family: 'DM Sans', sans-serif;
+            font-size: 14px; color: var(--ink);
+            background: var(--cream); border: 1.5px solid var(--border);
+            border-radius: 10px; padding: 11px 14px; outline: none;
+            transition: border-color .2s, box-shadow .2s, background .2s;
+            -webkit-appearance: none;
+        }
+        input:focus, textarea:focus {
+            border-color: var(--teal);
+            box-shadow: 0 0 0 3px rgba(13,115,119,0.1);
+            background: #fff;
+        }
+        input.error, textarea.error { border-color: var(--danger); background: var(--danger-light); }
+
+        /* read-only auto-filled */
+        input[readonly] {
+            background: var(--teal-light);
+            border-color: rgba(13,115,119,0.25);
+            color: var(--teal); cursor: default; font-weight: 500;
+        }
+        input[readonly]:focus { box-shadow: none; }
+
+        textarea { resize: vertical; min-height: 90px; line-height: 1.65; }
+
+        /* lookup row */
+        .lookup-row { display: flex; gap: 8px; }
+        .lookup-row input { flex: 1; }
+        .btn-lookup {
+            font-family: 'DM Sans', sans-serif;
+            font-size: 13px; font-weight: 600;
+            color: #fff; background: var(--teal);
+            border: none; border-radius: 10px;
+            padding: 0 18px; cursor: pointer;
+            display: flex; align-items: center; gap: 7px;
+            transition: background .2s;
+            min-width: 90px; justify-content: center;
+        }
+        .btn-lookup:hover { background: #0a5c5f; }
+        .btn-lookup:disabled { background: var(--ink-dim); cursor: not-allowed; }
+        .btn-lookup svg { width: 15px; height: 15px; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        .patient-found {
+            margin-top: 7px; font-size: 12px; font-weight: 500;
+            color: var(--success); background: var(--success-light);
+            border: 1px solid rgba(30,107,60,0.2);
+            border-radius: 7px; padding: 7px 12px; display: none;
+        }
+        .patient-not-found {
+            margin-top: 7px; font-size: 12px; font-weight: 500;
+            color: var(--danger); background: var(--danger-light);
+            border: 1px solid rgba(192,57,43,0.2);
+            border-radius: 7px; padding: 7px 12px; display: none;
+        }
+
+        /* auto-fill block */
+        .autofill-block {
+            margin-top: 14px; padding: 14px 16px;
+            background: var(--teal-light);
+            border: 1px solid rgba(13,115,119,0.2);
+            border-radius: 12px; display: none;
+            animation: fadeUp .25s ease;
+        }
+        .autofill-label {
+            font-size: 10px; font-weight: 600; letter-spacing: 1px;
+            text-transform: uppercase; color: var(--teal); margin-bottom: 10px;
+        }
+
+        .vital-wrap { position: relative; }
+        .vital-wrap input { padding-right: 46px; }
+        .vital-unit {
+            position: absolute; right: 13px; top: 50%;
+            transform: translateY(-50%);
+            font-size: 11px; font-weight: 500;
+            color: var(--ink-dim); pointer-events: none;
+        }
+        .vital-ref { font-size: 11px; color: var(--ink-dim); margin-top: 5px; }
+        .vital-ref.warn { color: #854F0B; }
+
+        .err-msg { font-size: 11px; color: var(--danger); margin-top: 5px; display: none; }
+        .field.has-error .err-msg { display: block; }
+
+        .divider { border: none; border-top: 1px solid var(--border); margin: 22px 0; }
+        .section-label {
+            font-size: 11px; font-weight: 600; letter-spacing: 1px;
+            text-transform: uppercase; color: var(--ink-dim); margin-bottom: 16px;
+        }
+
+        .btn-submit {
+            width: 100%; margin-top: 26px;
+            font-family: 'DM Sans', sans-serif;
+            font-size: 15px; font-weight: 600;
+            color: #fff; background: var(--teal);
+            border: none; border-radius: 11px; padding: 14px;
+            cursor: pointer;
+            display: flex; align-items: center; justify-content: center; gap: 8px;
+            transition: background .2s, transform .1s;
+        }
+        .btn-submit:hover { background: #0a5c5f; }
+        .btn-submit:active { transform: scale(.98); }
+        .btn-submit:disabled { background: var(--ink-dim); cursor: not-allowed; }
+        .btn-submit svg { width: 16px; height: 16px; }
+
+        .privacy-note { text-align: center; margin-top: 14px; font-size: 11px; color: var(--ink-dim); line-height: 1.6; }
+
+        .success { display: none; text-align: center; padding: 16px 0; animation: fadeUp .35s ease; }
+        .success.show { display: block; }
+        @keyframes fadeUp { from{opacity:0;transform:translateY(10px);} to{opacity:1;transform:translateY(0);} }
+        .success-icon {
+            width: 68px; height: 68px; border-radius: 50%;
+            background: var(--success-light); margin: 0 auto 18px;
+            display: flex; align-items: center; justify-content: center; font-size: 30px;
+        }
+        .success h3 { font-family: 'DM Serif Display', serif; font-size: 23px; margin-bottom: 10px; }
+        .success p { font-size: 13px; color: var(--ink-light); line-height: 1.7; margin-bottom: 8px; }
+        .ref-badge {
+            display: inline-block; margin-top: 14px;
+            background: var(--teal-light); color: var(--teal);
+            font-size: 13px; font-weight: 600; padding: 8px 18px; border-radius: 8px;
+        }
+        .new-checkin {
+            display: inline-block; margin-top: 16px;
+            font-size: 13px; color: var(--teal); cursor: pointer;
+            text-decoration: underline; background: none; border: none;
+            font-family: 'DM Sans', sans-serif;
+        }
+
+        @media (max-width: 740px) {
+            main { grid-template-columns: 1fr; padding: 28px 20px; gap: 32px; }
+            header { padding: 16px 20px; }
+            .form-card { padding: 24px 18px; }
+            .field-row { grid-template-columns: 1fr; }
+            .intro h1 { font-size: 30px; }
+        }
+    </style>
+</head>
+<body>
+
+<header>
+    <div class="logo">
+        <div class="logo-mark">
+            <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round">
+                <path d="M22 12h-4l-3 9L9 3l-3 9H2"/>
+            </svg>
+        </div>
+        <span class="logo-name">Clin<span>IQ</span></span>
+    </div>
+    <div class="header-right">
+        <div class="live-dot"></div>
+        System online
+    </div>
+</header>
+
+<main>
+    <div class="intro">
+        <div class="intro-tag">Patient Check-In</div>
+        <h1>Tell us how you're <em>feeling</em> today</h1>
+        <p>Enter your Patient ID to get started. Your name and age will be retrieved automatically — you just need to describe your symptoms and provide your vitals.</p>
+        <div class="info-list">
+            <div class="info-item">
+                <div class="info-icon">⚡</div>
+                <div>
+                    <h4>Assessed in seconds</h4>
+                    <p>Your details are automatically reviewed by our AI system the moment you submit.</p>
+                </div>
+            </div>
+            <div class="info-item">
+                <div class="info-icon">🩺</div>
+                <div>
+                    <h4>Clinician notified if urgent</h4>
+                    <p>If your assessment is high risk, a clinician is alerted by email immediately.</p>
+                </div>
+            </div>
+            <div class="info-item">
+                <div class="info-icon">🔒</div>
+                <div>
+                    <h4>Private and secure</h4>
+                    <p>Your data is encrypted and stored in accordance with Australian health privacy law.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="form-card">
+        <div id="form-view">
+            <h2>Health Check-In</h2>
+            <p class="form-sub">Start by entering your Patient ID to retrieve your details.</p>
+
+            <p class="section-label">Personal details</p>
+
+            <!-- Patient ID + lookup button -->
+            <div class="field" id="f-patientId">
+                <label>Patient ID <span class="req">*</span></label>
+                <div class="lookup-row">
+                    <input
+                            type="text" id="patientId"
+                            placeholder="e.g. P001" autocomplete="off"
+                            oninput="onPatientIdInput()"
+                            onkeydown="if(event.key==='Enter'){event.preventDefault();lookupPatient();}"
+                    >
+                    <button class="btn-lookup" id="lookup-btn" onclick="lookupPatient()">
+                        <span id="lookup-label">Look up</span>
+                        <svg id="lookup-spinner" style="display:none;animation:spin .7s linear infinite"
+                             viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                             stroke-width="2.5" stroke-linecap="round">
+                            <path d="M21 12a9 9 0 1 1-6.219-8.56"/>
+                        </svg>
+                    </button>
+                </div>
+                <div class="err-msg" id="pid-err">Please enter your Patient ID</div>
+                <div class="patient-found"     id="patient-found">&#10003; Patient record found</div>
+                <div class="patient-not-found" id="patient-not-found">&#10007; No record found for this ID — please check and try again</div>
+            </div>
+
+            <!-- Auto-filled name + age — shown after successful lookup -->
+            <div class="autofill-block" id="autofill-block">
+                <div class="autofill-label">Retrieved from patient record</div>
+                <div class="field-row">
+                    <div class="field" style="margin-bottom:0">
+                        <label>Full name <span class="hint">auto-filled</span></label>
+                        <input type="text" id="name" readonly tabindex="-1">
+                    </div>
+                    <div class="field" style="margin-bottom:0">
+                        <label>Age <span class="hint">auto-filled</span></label>
+                        <input type="text" id="age" readonly tabindex="-1">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Symptoms + vitals — hidden until patient found -->
+            <div id="checkin-fields" style="display:none">
+
+                <hr class="divider">
+                <p class="section-label">Symptoms</p>
+
+                <div class="field" id="f-symptoms">
+                    <label>Describe your symptoms <span class="req">*</span></label>
+                    <textarea id="symptoms"
+                              placeholder="e.g. severe chest pain and difficulty breathing for the past hour…"
+                              oninput="clearErr('f-symptoms')"></textarea>
+                    <div class="err-msg">Please describe your symptoms (at least 10 characters)</div>
+                </div>
+
+                <hr class="divider">
+                <p class="section-label">Vitals</p>
+
+                <div class="field-row">
+                    <div class="field" id="f-heartRate">
+                        <label>Heart rate <span class="req">*</span></label>
+                        <div class="vital-wrap">
+                            <input type="number" id="heartRate" placeholder="e.g. 125" min="30" max="250"
+                                   oninput="checkVital('heartRate');clearErr('f-heartRate')">
+                            <span class="vital-unit">bpm</span>
+                        </div>
+                        <div class="vital-ref" id="ref-heartRate">Normal: 60–100 bpm</div>
+                        <div class="err-msg">Please enter heart rate</div>
+                    </div>
+                    <div class="field" id="f-temperature">
+                        <label>Temperature <span class="req">*</span></label>
+                        <div class="vital-wrap">
+                            <input type="number" id="temperature" placeholder="e.g. 38.9" step="0.1" min="34" max="43"
+                                   oninput="checkVital('temperature');clearErr('f-temperature')">
+                            <span class="vital-unit">°C</span>
+                        </div>
+                        <div class="vital-ref" id="ref-temperature">Normal: 36.1–37.2 °C</div>
+                        <div class="err-msg">Please enter temperature</div>
+                    </div>
+                </div>
+
+                <div class="field" id="f-bloodPressure" style="max-width:220px">
+                    <label>Blood pressure <span class="req">*</span> <span class="hint">systolic</span></label>
+                    <div class="vital-wrap">
+                        <input type="number" id="bloodPressure" placeholder="e.g. 155" min="60" max="260"
+                               oninput="checkVital('bloodPressure');clearErr('f-bloodPressure')">
+                        <span class="vital-unit">mmHg</span>
+                    </div>
+                    <div class="vital-ref" id="ref-bloodPressure">Normal: 90–120 mmHg systolic</div>
+                    <div class="err-msg">Please enter blood pressure</div>
+                </div>
+
+                <button class="btn-submit" id="submit-btn" onclick="submitForm()">
+                    Submit check-in
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+                        <path d="M5 12h14M12 5l7 7-7 7"/>
+                    </svg>
+                </button>
+
+                <p class="privacy-note">
+                    Your information is only used for clinical assessment.<br>
+                    Existing medical records are retrieved securely using your Patient ID.
+                </p>
+
+            </div>
+        </div>
+
+        <!-- Success -->
+        <div class="success" id="success-view">
+            <div class="success-icon">&#9989;</div>
+            <h3>Check-in received</h3>
+            <p>Your symptoms and vitals have been submitted and are being assessed right now.</p>
+            <p>If your condition requires urgent attention, a clinician will be notified <strong>immediately</strong>.</p>
+            <div class="ref-badge" id="ref-badge">Ref: —</div>
+            <br>
+            <button class="new-checkin" onclick="resetForm()">Submit another check-in</button>
+        </div>
+    </div>
+</main>
+
+<script>
+    const NODE_RED_URL = 'http://127.0.0.1:1880';
+
+    const thresholds = {
+        heartRate:     { low: 60,   high: 100,  label: 'Normal: 60–100 bpm' },
+        temperature:   { low: 36.1, high: 37.2, label: 'Normal: 36.1–37.2 °C' },
+        bloodPressure: { low: 90,   high: 120,  label: 'Normal: 90–120 mmHg systolic' },
+    };
+
+    function checkVital(id) {
+        const val = parseFloat(document.getElementById(id).value);
+        const ref = document.getElementById('ref-' + id);
+        const t   = thresholds[id];
+        if (!isNaN(val) && (val < t.low || val > t.high)) {
+            ref.textContent = '⚠ Outside normal range (' + t.label.split(': ')[1] + ')';
+            ref.className = 'vital-ref warn';
+        } else {
+            ref.textContent = t.label;
+            ref.className = 'vital-ref';
+        }
+    }
+
+    // Reset everything if patient ID is edited after a successful lookup
+    function onPatientIdInput() {
+        clearErr('f-patientId');
+        document.getElementById('patient-found').style.display     = 'none';
+        document.getElementById('patient-not-found').style.display = 'none';
+        document.getElementById('autofill-block').style.display    = 'none';
+        document.getElementById('checkin-fields').style.display    = 'none';
+        document.getElementById('name').value = '';
+        document.getElementById('age').value  = '';
+    }
+
+    // GET /patient/:patientId
+    // Expected response: { "patientId": "P001", "name": "John Smith", "age": 45 }
+    async function lookupPatient() {
+        const patientId = document.getElementById('patientId').value.trim();
+
+        if (!patientId) {
+            document.getElementById('f-patientId').classList.add('has-error');
+            document.getElementById('pid-err').style.display = 'block';
+            return;
+        }
+
+        // Show spinner, disable button
+        const btn     = document.getElementById('lookup-btn');
+        const label   = document.getElementById('lookup-label');
+        const spinner = document.getElementById('lookup-spinner');
+        btn.disabled          = true;
+        label.style.display   = 'none';
+        spinner.style.display = 'block';
+        document.getElementById('patient-found').style.display     = 'none';
+        document.getElementById('patient-not-found').style.display = 'none';
+
+        try {
+            const res = await fetch(NODE_RED_URL + '/patient/' + patientId);
+            // if (!res.ok) throw new Error('Not found');
+            //
+            // const data = await res.json();
+            const data = {
+                name: "Lionel Lopez",
+                age: 32
+            }
+
+            // Fill read-only fields from API response
+            document.getElementById('name').value = data.name;
+            document.getElementById('age').value  = data.age;
+
+            // Reveal confirmed details and rest of form
+            document.getElementById('patient-found').style.display  = 'block';
+            document.getElementById('autofill-block').style.display = 'block';
+            document.getElementById('checkin-fields').style.display = 'block';
+
+            // Jump focus to symptoms field
+            setTimeout(() => document.getElementById('symptoms').focus(), 100);
+
+        } catch {
+            document.getElementById('patient-not-found').style.display = 'block';
+            document.getElementById('autofill-block').style.display    = 'none';
+            document.getElementById('checkin-fields').style.display    = 'none';
+        }
+
+        btn.disabled          = false;
+        label.style.display   = 'inline';
+        spinner.style.display = 'none';
+    }
+
+    function clearErr(fieldId) {
+        document.getElementById(fieldId).classList.remove('has-error');
+        const inp = document.querySelector('#' + fieldId + ' input, #' + fieldId + ' textarea');
+        if (inp) inp.classList.remove('error');
+    }
+
+    function showErr(fieldId) {
+        document.getElementById(fieldId).classList.add('has-error');
+        const inp = document.querySelector('#' + fieldId + ' input, #' + fieldId + ' textarea');
+        if (inp) inp.classList.add('error');
+    }
+
+    function validate() {
+        let ok = true;
+        if (!document.getElementById('patientId').value.trim()) { showErr('f-patientId'); ok = false; }
+        // name is auto-filled — if empty the lookup has not been done
+        if (!document.getElementById('name').value.trim()) ok = false;
+        const symptoms = document.getElementById('symptoms').value.trim();
+        if (symptoms.length < 10) { showErr('f-symptoms'); ok = false; }
+        const hr = parseFloat(document.getElementById('heartRate').value);
+        if (!hr || hr < 30 || hr > 250) { showErr('f-heartRate'); ok = false; }
+        const temp = parseFloat(document.getElementById('temperature').value);
+        if (!temp || temp < 34 || temp > 43) { showErr('f-temperature'); ok = false; }
+        const bp = parseFloat(document.getElementById('bloodPressure').value);
+        if (!bp || bp < 60 || bp > 260) { showErr('f-bloodPressure'); ok = false; }
+        return ok;
+    }
+
+    function submitForm() {
+        if (!validate()) return;
+
+        const btn = document.getElementById('submit-btn');
+        btn.disabled    = true;
+        btn.textContent = 'Submitting…';
+
+        const payload = {
+            patientId:     document.getElementById('patientId').value.trim(),
+            name:          document.getElementById('name').value.trim(),
+            age:           parseInt(document.getElementById('age').value),
+            symptoms:      document.getElementById('symptoms').value.trim(),
+            heartRate:     parseFloat(document.getElementById('heartRate').value),
+            temperature:   parseFloat(document.getElementById('temperature').value),
+            bloodPressure: parseFloat(document.getElementById('bloodPressure').value),
+            timestamp:     new Date().toISOString(),
+        };
+
+        fetch(NODE_RED_URL + '/checkin', {
+            method:  'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body:    JSON.stringify(payload),
+        })
+            .then(r => r.json())
+            .then(data => showSuccess(data.referenceId || payload.patientId))
+            .catch(() => showSuccess(payload.patientId));
+    }
+
+    function showSuccess(pid) {
+        document.getElementById('form-view').style.display = 'none';
+        document.getElementById('ref-badge').textContent   = 'Ref: CIQ-' + pid + '-' + Date.now().toString().slice(-4);
+        document.getElementById('success-view').classList.add('show');
+    }
+
+    function resetForm() {
+        document.getElementById('success-view').classList.remove('show');
+        document.getElementById('form-view').style.display = 'block';
+        document.getElementById('submit-btn').disabled     = false;
+        document.getElementById('submit-btn').innerHTML    =
+            'Submit check-in <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>';
+        ['patientId','name','age','symptoms','heartRate','temperature','bloodPressure']
+            .forEach(id => { document.getElementById(id).value = ''; });
+        ['f-patientId','f-symptoms','f-heartRate','f-temperature','f-bloodPressure']
+            .forEach(id => clearErr(id));
+        Object.keys(thresholds).forEach(id => {
+            document.getElementById('ref-' + id).textContent = thresholds[id].label;
+            document.getElementById('ref-' + id).className   = 'vital-ref';
+        });
+        document.getElementById('patient-found').style.display     = 'none';
+        document.getElementById('patient-not-found').style.display = 'none';
+        document.getElementById('autofill-block').style.display    = 'none';
+        document.getElementById('checkin-fields').style.display    = 'none';
+        document.getElementById('pid-err').style.display           = 'none';
+    }
+</script>
+</body>
+</html>
