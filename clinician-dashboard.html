@@ -463,7 +463,7 @@
 </div>
 
 <script>
-    const NODE_RED_URL = 'http://127.0.0.1:1880';
+    const NODE_RED_URL = 'http://35.208.117.33:1880';
 
     const actionLabel = { 5:'Emergency', 4:'Email sent', 3:'Urgent GP', 2:'Book GP', 1:'Monitor' };
     const actionClass  = { 5:'at5', 4:'at4', 3:'at3', 2:'at2', 1:'at1' };
@@ -476,7 +476,7 @@
         try {
             const res  = await fetch(NODE_RED_URL + '/dashboard/patients');
             const data = await res.json();
-            patients = data.patients;
+            patients = data;
             updateStats();
             renderTable();
             document.getElementById('last-sync').textContent = 'just now';
